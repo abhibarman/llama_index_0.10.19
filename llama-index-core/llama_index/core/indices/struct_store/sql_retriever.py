@@ -303,6 +303,10 @@ class NLSQLRetriever(BaseRetriever, PromptMixin):
         sql_query_str = self._sql_parser.parse_response_to_sql(
             response_str, query_bundle
         )
+        #Abhijit
+        if 'sql\n' in sql_query_str:
+            sql_query_str = sql_query_str[len('sql\n'):].strip()
+        #
         # assume that it's a valid SQL query
         logger.debug(f"> Predicted SQL query: {sql_query_str}")
         if self._verbose:

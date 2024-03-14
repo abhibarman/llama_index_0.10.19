@@ -265,8 +265,14 @@ class KGTableRetriever(BaseRetriever):
             logger.debug(
                 f"Found the following rel_texts+query similarites: {similarities!s}"
             )
-            logger.debug(f"Found the following top_k rel_texts: {rel_texts!s}")
+            # logger.debug(f"Found the following top_k rel_texts: {rel_texts!s}")
+            # Rana : fix logger should display top_rel_texts instead of rel_texts
+            logger.debug(f"Found the following top_k rel_texts: {top_rel_texts!s}")
             rel_texts.extend(top_rel_texts)
+            # Rana: Print nodes and similarities:
+            # print("<<<<<<<<<<<<<<<<< Nodes and Similarity Scores >>>>>>>>>>>>>>>>>>")
+            # for n, s in zip(top_rel_texts, similarities):
+            #     print(n,":",s)
 
         elif len(self._index_struct.embedding_dict) == 0:
             logger.warning(
@@ -377,6 +383,15 @@ class KGTableRetriever(BaseRetriever):
         sorted_nodes_with_scores.append(
             NodeWithScore(node=rel_text_node, score=DEFAULT_NODE_SCORE)
         )
+        try:
+            uniq_entities = set()
+            triplets = [s.split(',')for s in sorted_nodes_with_scores[-1].metadata['kg_rel_texts']]
+            for triplet in triplets:
+                uniq_entities.add(triplet[0].strip(" \"'{}()"))
+                uniq_entities.add(triplet[2].strip(" \"'{}()"))
+            print(f'Unstruct Nodes to Highlight:, {",".join(list(uniq_entities))}')
+        except Exception as e:
+            print(e)
 
         return sorted_nodes_with_scores
 
@@ -389,6 +404,48 @@ class KGTableRetriever(BaseRetriever):
                 continue
             return node.metadata
         raise ValueError("kg_rel_map must be found in at least one Node.")
+    
+    def retrieve_similar_rels(self, query_str: str,) -> List[NodeWithScore]:
+        """Retrieve nodes with similar embeddings."""
+        keywords = self._get_keywords(query_str)
+        if (
+            self._retriever_mode != KGRetrieverMode.KEYWORD
+            and len(self._index_struct.embedding_dict) > 0
+        ):
+            query_embedding = self._embed_model.get_text_embedding(
+                query_str
+            )
+            all_rel_texts = list(self._index_struct.embedding_dict.keys())
+
+            rel_text_embeddings = [
+                self._index_struct.embedding_dict[_id] for _id in all_rel_texts
+            ]
+            similarities, top_rel_texts = get_top_k_embeddings(
+                query_embedding,
+                rel_text_embeddings,
+                similarity_top_k=self.similarity_top_k,
+                embedding_ids=all_rel_texts,
+            )
+
+        return similarities, top_rel_texts
+    
+    def retrieve_kw_match_nodes(self, query_str: str,kw_weightage: int) -> List[NodeWithScore]:
+        """Get nodes with same keywords"""
+        node_text_sim = {}
+        keywords = self._get_keywords(query_str)
+        keywords.append(query_str)
+        for keyword in keywords:
+            for key in self._index_struct.table:
+                if keyword.upper() in key.upper().replace('_',' '):
+                    # (len(keyword)/len(key)) # If all letters match then it's 1, else less than 1
+                    if key in node_text_sim:
+                        node_text_sim[key] = max(node_text_sim[key], len(keyword)/len(key))
+                    else:
+                        node_text_sim[key] = len(keyword)/len(key)*kw_weightage
+
+        return list(node_text_sim.values()), list(node_text_sim.keys())
+    
+    
 
 
 DEFAULT_SYNONYM_EXPAND_TEMPLATE = """

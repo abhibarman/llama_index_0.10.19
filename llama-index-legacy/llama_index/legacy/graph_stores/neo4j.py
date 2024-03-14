@@ -154,8 +154,11 @@ class Neo4jGraphStore(GraphStore):
         """
 
         prepared_statement = query % (
-            self.node_label,
-            self.node_label,
+            # self.node_label,
+            # self.node_label,
+            # Rana: Commmented creation of node with label as Entity and made the node label as the name
+            subj,
+            obj,
             rel.replace(" ", "_").upper(),
         )
 
@@ -255,3 +258,13 @@ class Neo4jGraphStore(GraphStore):
         with self._driver.session(database=self._database) as session:
             result = session.run(query, param_map)
             return [d.data() for d in result]
+    
+    ## Rana - For EKE
+    def add_node_properties(self, label: str, prop_map: Dict[str, Any] = {}) -> None:
+        """Adds properties to neo4j nodes."""
+        cypher_query = """
+            MATCH (node:%s)
+            SET %s
+        """
+        with self._driver.session(database=self._database) as session:
+            session.run(cypher_query % (label, ', '.join([f'node.{prop} = "' + str(prop_map[prop])+'"' for prop in prop_map.keys()])))

@@ -456,7 +456,9 @@ def print_text(text: str, color: Optional[str] = None, end: str = "") -> None:
     Returns:
         None
     """
-    text_to_print = _get_colored_text(text, color) if color is not None else text
+    # Rana: removing color
+    # text_to_print = _get_colored_text(text, color) if color is not None else text
+    text_to_print=text
     print(text_to_print, end=end)
 
 

@@ -90,6 +90,8 @@ class KnowledgeGraphIndex(BaseIndex[KG]):
         )
         self._max_object_length = max_object_length
         self._kg_triplet_extract_fn = kg_triplet_extract_fn
+        # Rana: New parameter to process structured embeddings
+        self.structured = kwargs.get('structured',False)
 
         self._llm = llm or llm_from_settings_or_context(Settings, service_context)
         self._embed_model = embed_model or embed_model_from_settings_or_context(
@@ -187,9 +189,13 @@ class KnowledgeGraphIndex(BaseIndex[KG]):
                 continue
 
             # Strip double quotes and Capitalize triplets for disambiguation
+            # Rana: Additionally strip off spaces, single quotes and brackets ()
             subj, pred, obj = (
-                entity.strip('"').capitalize() for entity in [subj, pred, obj]
+                # entity.strip('"').capitalize() for entity in [subj, pred, obj]
+                entity.strip(' ("\')').capitalize() for entity in [subj, pred, obj]
             )
+            #Rana: remove spaces and make the predicate upper case
+            pred = pred.upper().replace(' ','_')
 
             results.append((subj, pred, obj))
         return results
@@ -217,6 +223,16 @@ class KnowledgeGraphIndex(BaseIndex[KG]):
                 embed_outputs = self._embed_model.get_text_embedding_batch(
                     triplet_texts, show_progress=self._show_progress
                 )
+                # Rana: Creating embedding for node_text for structured                
+                node_texts = n.get_content(metadata_mode=MetadataMode.LLM).split("|")
+                if not self.structured:
+                    embed_outputs = self._embed_model.get_text_embedding_batch(
+                        triplet_texts, show_progress=self._show_progress
+                    )
+                else:
+                    embed_outputs = self._embed_model.get_text_embedding_batch(
+                        node_texts, show_progress=self._show_progress
+                    )
                 for rel_text, rel_embed in zip(triplet_texts, embed_outputs):
                     index_struct.add_to_embedding_dict(rel_text, rel_embed)
 
