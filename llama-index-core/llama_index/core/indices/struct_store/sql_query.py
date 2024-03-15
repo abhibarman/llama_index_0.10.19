@@ -396,7 +396,7 @@ class BaseSQLTableQueryEngine(BaseQueryEngine):
             txt = ''
             for node in retrieved_nodes:
                 txt += node.text +' '
-            print(f"Complete text: {txt}")
+            # print(f"Complete text: {txt}")
             no_tokens = num_tokens_from_string(txt)
             print(f"Number of tokens generated is {no_tokens}")
 
